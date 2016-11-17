@@ -36,6 +36,10 @@ http-status-check -i exemple.csv
 http-status-check -i exemple.csv -o raw-github-test.csv -c 2 -n https://raw.github.com/
 ```
 
+## Installation from binaries
+
+See the [GitHub releases](https://github.com/Benoth/http-status-check/releases)
+
 
 ## Installation from sources
 
