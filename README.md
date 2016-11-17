@@ -1,8 +1,8 @@
-# SEO redirects checker
+# HTTP status check
 
-## Installation
+## Installation from sources
 
-### Go
+### Install Go
 
 ```
 bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer)
@@ -15,7 +15,7 @@ gvm install go1.7 --prefer-binary
 gvm use go1.7 --default
 ```
 
-### Packages
+### Install packages
 
 ```
 go get github.com/jawher/mow.cli

@@ -25,14 +25,14 @@ var visitedURL map[string]Url = make(map[string]Url)
 var request = gorequest.New().Timeout(10000 * time.Millisecond)
 
 func main() {
-    app := cli.App("seo-redirects-checker", "Check redirects")
+    app := cli.App("http-status-check", "CLI tool to crawl URLs from a CSV file and check HTTP status code")
     app.Spec = "[-c=<concurrency>] [-i=<input-file-path>] [-o=<output-file-path>] [-n=<new-uri>]"
 
     var (
         concurrency = app.IntOpt("c concurrency",  5,            "Concurrency")
         inputPath   = app.StringOpt("i input",     "input.csv",  "Input CSV file path")
         outputPath  = app.StringOpt("o output",    "output.csv", "Output CSV file path")
-        newuri      = app.StringOpt("n newuri",    "",           "New Uri for replacements (ie: https://staging.exemple.com/)")
+        newuri      = app.StringOpt("n newuri",    "",           "New URI for scheme/host replacements (ie: https://staging.exemple.com/)")
     )
 
     app.Action = func() {

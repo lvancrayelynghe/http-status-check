@@ -23,6 +23,6 @@ _testmain.go
 *.test
 *.prof
 
-# Project specifi
-seo-redirects-checker
+# Project specific
+http-status-check
 *.csv
