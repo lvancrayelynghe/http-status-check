@@ -11,4 +11,4 @@ before_install:
   - go get gopkg.in/go-playground/pool.v3
 script:
   - gox -output "dist/{{.OS}}_{{.Arch}}_{{.Dir}}"
-  - ghr --username tcnksm-sample --token $GITHUB_TOKEN --replace --prerelease --debug pre-release dist/
+  - ghr --username $GITHUB_USER --token $GITHUB_TOKEN --replace --prerelease --debug pre-release dist/

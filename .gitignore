@@ -24,6 +24,7 @@ _testmain.go
 *.prof
 
 # Project specific
+dist
 http-status-check*
 *.csv
 !exemple.csv
