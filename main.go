@@ -10,11 +10,11 @@ import (
     "log"
     "io"
     "os"
-    "encoding/csv"
+    "strings"
     "strconv"
     "time"
+    "encoding/csv"
     "net/http"
-    "strings"
     "github.com/parnurzeal/gorequest"
     "gopkg.in/go-playground/pool.v3"
 )
@@ -25,29 +25,47 @@ type Url struct {
     duration time.Duration
 }
 
+var urls = make([]string, 0)
 var visitedURL map[string]Url = make(map[string]Url)
 var request = gorequest.New().Timeout(10000 * time.Millisecond)
 
-var baseURL string = "http://www.exemple.com/"
-var replaceURL string = "https://recette.exemple.com/"
-
-var urls = make([]string, 0)
-
 func main() {
     log.Println("Starting...")
+    timeStart := time.Now()
 
-    err := readCSV("input.csv")
+    // @todo get args from command line
+    inputPath := "input.csv"
+    outputPath := "output.csv"
+    concurrency := 3
+    baseURL := "http://www.exemple.com/"
+    replaceURL := "https://recette.exemple.com/"
+
+    log.Println("Concurrency set to", concurrency)
+
+    err := process(inputPath, outputPath, baseURL, replaceURL, uint(concurrency))
     if err != nil {
         log.Fatalln(err)
     }
 
-    p := pool.NewLimited(10)
+    totalTime := time.Since(timeStart)
+    log.Println("Done in", totalTime.String())
+}
+
+func process(inputPath string, outputPath string, baseURL string, replaceURL string, concurrency uint) error {
+    errRead := readCSV(inputPath)
+    if errRead != nil {
+        return errRead
+    }
+
+    log.Println(len(urls), "urls to parse")
+
+    p := pool.NewLimited(concurrency)
     batch := p.Batch()
     defer p.Close()
 
     go func() {
         for _, url := range urls {
-            batch.Queue(handleUrl(url))
+            batch.Queue(handleUrl(url, baseURL, replaceURL))
         }
 
         // DO NOT FORGET THIS OR GOROUTINES WILL DEADLOCK
@@ -56,9 +74,10 @@ func main() {
     }()
 
     for crawl := range batch.Results() {
-        if err := crawl.Error(); err != nil {
+        if errCrawl := crawl.Error(); errCrawl != nil {
             // handle error
-            log.Println("Error: ", err)
+            log.Println("Error: ", errCrawl)
+            continue
         }
 
         url := crawl.Value().(Url)
@@ -66,9 +85,12 @@ func main() {
         visitedURL[url.uri] = url
     }
 
-    writeCSV("output.csv", visitedURL)
+    errWrite := writeCSV(outputPath, visitedURL)
+    if errWrite != nil {
+        return errWrite
+    }
 
-    log.Println("Done !")
+    return nil
 }
 
 func readCSV(filepath string) error {
@@ -141,7 +163,7 @@ func writeCSV(filepath string, datas map[string]Url) error {
     return nil
 }
 
-func handleUrl(url string) pool.WorkFunc  {
+func handleUrl(url string, baseURL string, replaceURL string) pool.WorkFunc  {
     return func(wu pool.WorkUnit) (interface{}, error) {
         if wu.IsCancelled() {
             // return values not used
@@ -151,7 +173,7 @@ func handleUrl(url string) pool.WorkFunc  {
         // Change destination URL
         url = strings.Replace(url, baseURL, replaceURL, -1)
 
-        log.Println("Parsing " + url)
+        log.Println("Checking", url)
 
         newUrl := Url{uri: url}
         errs := newUrl.parseUrl()

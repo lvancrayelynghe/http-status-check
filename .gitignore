@@ -24,4 +24,5 @@ _testmain.go
 *.prof
 
 # Project specifi
+seo-redirects-checker
 *.csv
