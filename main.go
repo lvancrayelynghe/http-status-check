@@ -82,8 +82,8 @@ func process(inputPath string, outputPath string, source string, destination str
     defer p.Close()
 
     go func() {
-        for _, url := range urls {
-            batch.Queue(handleUrl(url, source, destination))
+        for _, currentUrl := range urls {
+            batch.Queue(handleUrl(currentUrl, source, destination))
         }
 
         // DO NOT FORGET THIS OR GOROUTINES WILL DEADLOCK
@@ -98,9 +98,9 @@ func process(inputPath string, outputPath string, source string, destination str
             continue
         }
 
-        url := crawl.Value().(Url)
+        currentUrl := crawl.Value().(Url)
 
-        visitedURL[url.uri] = url
+        visitedURL[currentUrl.uri] = currentUrl
     }
 
     errWrite := writeCSV(outputPath, visitedURL)
@@ -158,17 +158,17 @@ func writeCSV(filepath string, datas map[string]Url) error {
         log.Fatal("Cannot create file", errWrite)
     }
 
-    for _, url := range datas {
-        responseCode := url.response.StatusCode
-        duration := url.duration.String()
+    for _, currentUrl := range datas {
+        responseCode := currentUrl.response.StatusCode
+        duration := currentUrl.duration.String()
 
-        locationValue, locationExist := url.response.Header["Location"]
+        locationValue, locationExist := currentUrl.response.Header["Location"]
         location := ""
         if locationExist {
             location = locationValue[0]
         }
 
-        line := []string{url.uri, strconv.Itoa(responseCode), duration, location}
+        line := []string{currentUrl.uri, strconv.Itoa(responseCode), duration, location}
 
         errWrite := writer.Write(line)
         if errWrite != nil {
@@ -181,7 +181,7 @@ func writeCSV(filepath string, datas map[string]Url) error {
     return nil
 }
 
-func handleUrl(url string, source string, destination string) pool.WorkFunc  {
+func handleUrl(currentUrl string, source string, destination string) pool.WorkFunc  {
     return func(wu pool.WorkUnit) (interface{}, error) {
         if wu.IsCancelled() {
             // return values not used
@@ -189,11 +189,11 @@ func handleUrl(url string, source string, destination string) pool.WorkFunc  {
         }
 
         // Change destination URL
-        url = strings.Replace(url, source, destination, -1)
+        currentUrl = strings.Replace(currentUrl, source, destination, -1)
 
-        log.Println("Checking", url)
+        log.Println("Checking", currentUrl)
 
-        newUrl := Url{uri: url}
+        newUrl := Url{uri: currentUrl}
         errs := newUrl.parseUrl()
 
         if errs != nil {
@@ -204,11 +204,11 @@ func handleUrl(url string, source string, destination string) pool.WorkFunc  {
     }
 }
 
-func getUrl(url string) (gorequest.Response, time.Duration, []error) {
+func getUrl(currentUrl string) (gorequest.Response, time.Duration, []error) {
     timeStart := time.Now()
 
     response, _, err := request.
-        Get(url).
+        Get(currentUrl).
         RedirectPolicy(func(req gorequest.Request, via []gorequest.Request) error {
             return http.ErrUseLastResponse
         }).End()
@@ -216,11 +216,11 @@ func getUrl(url string) (gorequest.Response, time.Duration, []error) {
     return response, time.Since(timeStart), err
 }
 
-func (url *Url) parseUrl() ([]error) {
-    response, duration, requestError := getUrl(url.uri)
+func (currentUrl *Url) parseUrl() ([]error) {
+    response, duration, requestError := getUrl(currentUrl.uri)
 
-    url.response = response
-    url.duration = duration
+    currentUrl.response = response
+    currentUrl.duration = duration
 
     if len(requestError) > 0 {
         return requestError
