@@ -18,6 +18,7 @@ gvm use go1.7 --default
 ### Packages
 
 ```
+go get github.com/jawher/mow.cli
 go get github.com/parnurzeal/gorequest
 go get gopkg.in/go-playground/pool.v3
 ```

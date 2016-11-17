@@ -1,9 +1,3 @@
-// https://tour.golang.org/
-// https://www.golang-book.com/books/intro
-
-// go get github.com/parnurzeal/gorequest
-// go get gopkg.in/go-playground/pool.v3
-
 package main
 
 import (
@@ -13,8 +7,10 @@ import (
     "strings"
     "strconv"
     "time"
-    "encoding/csv"
+    "net/url"
     "net/http"
+    "encoding/csv"
+    "github.com/jawher/mow.cli"
     "github.com/parnurzeal/gorequest"
     "gopkg.in/go-playground/pool.v3"
 )
@@ -30,28 +26,50 @@ var visitedURL map[string]Url = make(map[string]Url)
 var request = gorequest.New().Timeout(10000 * time.Millisecond)
 
 func main() {
-    log.Println("Starting...")
-    timeStart := time.Now()
+    app := cli.App("seo-redirects-checker", "Check redirects")
+    app.Spec = "[-c=<concurrency>] [-i=<input-file-path>] [-o=<output-file-path>] SOURCE ... DESTINATION"
 
-    // @todo get args from command line
-    inputPath := "input.csv"
-    outputPath := "output.csv"
-    concurrency := 3
-    baseURL := "http://www.exemple.com/"
-    replaceURL := "https://recette.exemple.com/"
+    var (
+        concurrency = app.IntOpt("c concurrency",  5,            "Concurrency")
+        inputPath   = app.StringOpt("i input",     "input.csv",  "Input CSV file path")
+        outputPath  = app.StringOpt("o output",    "output.csv", "Output CSV file path")
+        source      = app.StringArg("SOURCE",      "",           "Source URL (ie: http://www.exemple.com/)")
+        destination = app.StringArg("DESTINATION", "",           "Destination URL (ie: http://staging.exemple.com/)")
+    )
 
-    log.Println("Concurrency set to", concurrency)
+    app.Action = func() {
+        _, sourceErr := url.ParseRequestURI(*source)
+        if sourceErr != nil {
+            log.Fatalln(sourceErr)
+        }
 
-    err := process(inputPath, outputPath, baseURL, replaceURL, uint(concurrency))
-    if err != nil {
-        log.Fatalln(err)
+        _, destinationErr := url.ParseRequestURI(*destination)
+        if destinationErr != nil {
+            log.Fatalln(destinationErr)
+        }
+
+        if _, inputPathErr := os.Stat(*inputPath); os.IsNotExist(inputPathErr) {
+            log.Fatalln(inputPathErr)
+        }
+
+        log.Println("Starting...")
+        timeStart := time.Now()
+
+        log.Println("Concurrency set to", *concurrency)
+
+        err := process(*inputPath, *outputPath, *source, *destination, uint(*concurrency))
+        if err != nil {
+            log.Fatalln(err)
+        }
+
+        totalTime := time.Since(timeStart)
+        log.Println("Done in", totalTime.String())
     }
 
-    totalTime := time.Since(timeStart)
-    log.Println("Done in", totalTime.String())
+    app.Run(os.Args)
 }
 
-func process(inputPath string, outputPath string, baseURL string, replaceURL string, concurrency uint) error {
+func process(inputPath string, outputPath string, source string, destination string, concurrency uint) error {
     errRead := readCSV(inputPath)
     if errRead != nil {
         return errRead
@@ -65,7 +83,7 @@ func process(inputPath string, outputPath string, baseURL string, replaceURL str
 
     go func() {
         for _, url := range urls {
-            batch.Queue(handleUrl(url, baseURL, replaceURL))
+            batch.Queue(handleUrl(url, source, destination))
         }
 
         // DO NOT FORGET THIS OR GOROUTINES WILL DEADLOCK
@@ -163,7 +181,7 @@ func writeCSV(filepath string, datas map[string]Url) error {
     return nil
 }
 
-func handleUrl(url string, baseURL string, replaceURL string) pool.WorkFunc  {
+func handleUrl(url string, source string, destination string) pool.WorkFunc  {
     return func(wu pool.WorkUnit) (interface{}, error) {
         if wu.IsCancelled() {
             // return values not used
@@ -171,7 +189,7 @@ func handleUrl(url string, baseURL string, replaceURL string) pool.WorkFunc  {
         }
 
         // Change destination URL
-        url = strings.Replace(url, baseURL, replaceURL, -1)
+        url = strings.Replace(url, source, destination, -1)
 
         log.Println("Checking", url)
 
