@@ -25,7 +25,7 @@ var visitedURL map[string]Url = make(map[string]Url)
 var request = gorequest.New().Timeout(10000 * time.Millisecond)
 
 func main() {
-    app := cli.App("http-status-check", "CLI tool to crawl URLs from a CSV file and check HTTP status code")
+    app := cli.App("http-status-check", "CLI tool to concurrently checks URLs from a CSV file and check HTTP status code")
     app.Spec = "[-c=<concurrency>] [-i=<input-file-path>] [-o=<output-file-path>] [-n=<new-uri>]"
 
     var (

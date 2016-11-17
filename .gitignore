@@ -26,3 +26,4 @@ _testmain.go
 # Project specific
 http-status-check
 *.csv
+!exemple.csv
