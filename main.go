@@ -4,7 +4,6 @@ import (
     "log"
     "io"
     "os"
-    "strings"
     "strconv"
     "time"
     "net/url"
@@ -27,27 +26,22 @@ var request = gorequest.New().Timeout(10000 * time.Millisecond)
 
 func main() {
     app := cli.App("seo-redirects-checker", "Check redirects")
-    app.Spec = "[-c=<concurrency>] [-i=<input-file-path>] [-o=<output-file-path>] SOURCE ... DESTINATION"
+    app.Spec = "[-c=<concurrency>] [-i=<input-file-path>] [-o=<output-file-path>] [-n=<new-uri>]"
 
     var (
         concurrency = app.IntOpt("c concurrency",  5,            "Concurrency")
         inputPath   = app.StringOpt("i input",     "input.csv",  "Input CSV file path")
         outputPath  = app.StringOpt("o output",    "output.csv", "Output CSV file path")
-        source      = app.StringArg("SOURCE",      "",           "Source URL (ie: http://www.exemple.com/)")
-        destination = app.StringArg("DESTINATION", "",           "Destination URL (ie: http://staging.exemple.com/)")
+        newuri      = app.StringOpt("n newuri",    "",           "New Uri for replacements (ie: https://staging.exemple.com/)")
     )
 
     app.Action = func() {
-        _, sourceErr := url.ParseRequestURI(*source)
-        if sourceErr != nil {
-            log.Fatalln(sourceErr)
+        if *newuri != "" {
+            _, newuriErr := url.ParseRequestURI(*newuri)
+            if newuriErr != nil {
+                log.Fatalln(newuriErr)
+            }
         }
-
-        _, destinationErr := url.ParseRequestURI(*destination)
-        if destinationErr != nil {
-            log.Fatalln(destinationErr)
-        }
-
         if _, inputPathErr := os.Stat(*inputPath); os.IsNotExist(inputPathErr) {
             log.Fatalln(inputPathErr)
         }
@@ -57,7 +51,7 @@ func main() {
 
         log.Println("Concurrency set to", *concurrency)
 
-        err := process(*inputPath, *outputPath, *source, *destination, uint(*concurrency))
+        err := process(*inputPath, *outputPath, uint(*concurrency), *newuri)
         if err != nil {
             log.Fatalln(err)
         }
@@ -69,7 +63,7 @@ func main() {
     app.Run(os.Args)
 }
 
-func process(inputPath string, outputPath string, source string, destination string, concurrency uint) error {
+func process(inputPath string, outputPath string, concurrency uint, newuri string) error {
     errRead := readCSV(inputPath)
     if errRead != nil {
         return errRead
@@ -83,7 +77,7 @@ func process(inputPath string, outputPath string, source string, destination str
 
     go func() {
         for _, currentUrl := range urls {
-            batch.Queue(handleUrl(currentUrl, source, destination))
+            batch.Queue(handleUrl(currentUrl, newuri))
         }
 
         // DO NOT FORGET THIS OR GOROUTINES WILL DEADLOCK
@@ -181,7 +175,7 @@ func writeCSV(filepath string, datas map[string]Url) error {
     return nil
 }
 
-func handleUrl(currentUrl string, source string, destination string) pool.WorkFunc  {
+func handleUrl(currentUrl string, newuri string) pool.WorkFunc  {
     return func(wu pool.WorkUnit) (interface{}, error) {
         if wu.IsCancelled() {
             // return values not used
@@ -189,7 +183,20 @@ func handleUrl(currentUrl string, source string, destination string) pool.WorkFu
         }
 
         // Change destination URL
-        currentUrl = strings.Replace(currentUrl, source, destination, -1)
+        if newuri != "" {
+            currentUrlParsed, currentUrlErr := url.ParseRequestURI(currentUrl)
+            if currentUrlErr != nil {
+                return nil, currentUrlErr
+            }
+
+            newuriParsed, newuriErr := url.ParseRequestURI(newuri)
+            if newuriErr != nil {
+                return nil, newuriErr
+            }
+            currentUrlParsed.Scheme = newuriParsed.Scheme
+            currentUrlParsed.Host   = newuriParsed.Host
+            currentUrl = currentUrlParsed.String()
+        }
 
         log.Println("Checking", currentUrl)
 
