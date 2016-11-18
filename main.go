@@ -6,6 +6,7 @@ import (
     "strconv"
     "time"
     "net/url"
+    "path/filepath"
     "github.com/jawher/mow.cli"
     "github.com/parnurzeal/gorequest"
     "gopkg.in/go-playground/pool.v3"
@@ -14,12 +15,12 @@ import (
 var request = gorequest.New().Timeout(10000 * time.Millisecond)
 
 func main() {
-    app := cli.App("http-status-check", "CLI tool to concurrently checks URLs from a CSV file and check HTTP status code")
+    app := cli.App("http-status-check", "CLI tool to concurrently checks URLs from a CSV or a sitemap XML file and check HTTP status code")
     app.Spec = "[-c=<concurrency>] [-i=<input-file-path>] [-o=<output-file-path>] [-n=<new-uri>]"
 
     var (
         concurrency = app.IntOpt("c concurrency",  5,            "Concurrency")
-        inputPath   = app.StringOpt("i input",     "input.csv",  "Input CSV file path")
+        inputPath   = app.StringOpt("i input",     "input.csv",  "Input CSV or sitemap XML file path")
         outputPath  = app.StringOpt("o output",    "output.csv", "Output CSV file path")
         newuri      = app.StringOpt("n newuri",    "",           "New URI for scheme/host replacements (ie: https://staging.exemple.com/)")
     )
@@ -53,7 +54,16 @@ func main() {
 }
 
 func process(inputPath string, outputPath string, concurrency uint, newuri string) error {
-    datas, errRead := readCSV(inputPath)
+    var datas [][]string
+    var errRead error
+
+    fileExt := filepath.Ext(inputPath)
+    if fileExt == ".xml" {
+        datas, errRead = readSitemapXML(inputPath)
+    } else {
+        datas, errRead = readCSV(inputPath)
+    }
+
     if errRead != nil {
         return errRead
     }

@@ -1,6 +1,6 @@
 # HTTP status check
 
-Concurrently checks the HTTP status code of all links in a CSV file and output the results (status code, request time and potential redirect url) in another CSV file
+Concurrently checks the HTTP status code of all links in a CSV or a sitemap XML file and output the results (status code, request time and potential redirect url) in another CSV file
 
 You may also change the scheme/host of the links from CLI (ie: transform http://exemple.com/my/url to https://staging.exemple.com/my/url)
 
@@ -12,11 +12,11 @@ $ http-status-check --help
 
 Usage: http-status-check [-c=<concurrency>] [-i=<input-file-path>] [-o=<output-file-path>] [-n=<new-uri>]
 
-CLI tool to concurrently checks URLs from a CSV file and check HTTP status code
+CLI tool to concurrently checks URLs from a CSV or a sitemap XML file and check HTTP status code
 
 Options:
   -c, --concurrency=5         Concurrency
-  -i, --input="input.csv"     Input CSV file path
+  -i, --input="input.csv"     Input CSV or sitemap XML file path
   -o, --output="output.csv"   Output CSV file path
   -n, --newuri=""             New URI for scheme/host replacements (ie: https://staging.exemple.com/)
 ```
@@ -28,12 +28,14 @@ Options:
 
 ```
 http-status-check -i exemple.csv
+http-status-check -i sitemap.xml
 ```
 
 ### Complex exemple
 
 ```
 http-status-check -i exemple.csv -o raw-github-test.csv -c 2 -n https://raw.github.com/
+http-status-check -i sitemap.xml -o raw-github-test.csv -c 2 -n https://raw.github.com/
 ```
 
 ## Installation from binaries
