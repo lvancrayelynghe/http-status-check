@@ -3,6 +3,7 @@ package main
 import (
     "log"
     "os"
+    "strconv"
     "time"
     "net/url"
     "github.com/jawher/mow.cli"
@@ -10,8 +11,6 @@ import (
     "gopkg.in/go-playground/pool.v3"
 )
 
-var urls = make([]string, 0)
-var visitedURL map[string]Url = make(map[string]Url)
 var request = gorequest.New().Timeout(10000 * time.Millisecond)
 
 func main() {
@@ -54,20 +53,20 @@ func main() {
 }
 
 func process(inputPath string, outputPath string, concurrency uint, newuri string) error {
-    errRead := readCSV(inputPath)
+    datas, errRead := readCSV(inputPath)
     if errRead != nil {
         return errRead
     }
 
-    log.Println(len(urls), "urls to parse")
+    log.Println(len(datas), "urls to parse")
 
     p := pool.NewLimited(concurrency)
     batch := p.Batch()
     defer p.Close()
 
     go func() {
-        for _, currentUrl := range urls {
-            batch.Queue(handleUrl(currentUrl, newuri))
+        for _, data := range datas {
+            batch.Queue(handleUrl(data[0], newuri))
         }
 
         // DO NOT FORGET THIS OR GOROUTINES WILL DEADLOCK
@@ -75,6 +74,7 @@ func process(inputPath string, outputPath string, concurrency uint, newuri strin
         batch.QueueComplete()
     }()
 
+    lines := [][]string{{"Url", "Response Code", "Duration", "Redirect"}}
     for crawl := range batch.Results() {
         if errCrawl := crawl.Error(); errCrawl != nil {
             // handle error
@@ -84,10 +84,10 @@ func process(inputPath string, outputPath string, concurrency uint, newuri strin
 
         currentUrl := crawl.Value().(Url)
 
-        visitedURL[currentUrl.uri] = currentUrl
+        lines = append(lines, transformUrlToCsvLine(currentUrl))
     }
 
-    errWrite := writeCSV(outputPath, visitedURL)
+    errWrite := writeCSV(outputPath, lines)
     if errWrite != nil {
         return errWrite
     }
@@ -129,4 +129,17 @@ func handleUrl(currentUrl string, newuri string) pool.WorkFunc  {
 
         return newUrl, nil // everything ok, send nil as 2nd parameter if no error
     }
+}
+
+func transformUrlToCsvLine(currentUrl Url) []string {
+    responseCode := currentUrl.response.StatusCode
+    duration := currentUrl.duration.String()
+
+    locationValue, locationExist := currentUrl.response.Header["Location"]
+    location := ""
+    if locationExist {
+        location = locationValue[0]
+    }
+
+    return []string{currentUrl.uri, strconv.Itoa(responseCode), duration, location}
 }

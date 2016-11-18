@@ -4,14 +4,13 @@ import (
     "log"
     "io"
     "os"
-    "strconv"
     "encoding/csv"
 )
 
-func readCSV(filepath string) error {
+func readCSV(filepath string) ([][]string, error) {
     file, err := os.Open(filepath)
     if err != nil {
-        return err
+        return nil, err
     }
 
     // automatically call Close() at the end of current method
@@ -21,6 +20,7 @@ func readCSV(filepath string) error {
     reader := csv.NewReader(file)
     reader.Comma = ';'
 
+    datas := make([][]string, 0)
     for {
         // read just one record, but we could ReadAll() as well
         record, err := reader.Read()
@@ -29,16 +29,16 @@ func readCSV(filepath string) error {
         if err == io.EOF {
             break
         } else if err != nil {
-            return err
+            return nil, err
         }
 
-        urls = append(urls, record[0])
+        datas = append(datas, record)
     }
 
-    return nil
+    return datas, nil
 }
 
-func writeCSV(filepath string, datas map[string]Url) error {
+func writeCSV(filepath string, datas [][]string) error {
     file, err := os.Create(filepath)
     if err != nil {
         log.Fatal("Cannot create file", err)
@@ -49,24 +49,7 @@ func writeCSV(filepath string, datas map[string]Url) error {
     writer := csv.NewWriter(file)
     writer.Comma = ';'
 
-    line := []string{"Url", "Response Code", "Duration", "Redirect"}
-    errWrite := writer.Write(line)
-    if errWrite != nil {
-        log.Fatal("Cannot create file", errWrite)
-    }
-
-    for _, currentUrl := range datas {
-        responseCode := currentUrl.response.StatusCode
-        duration := currentUrl.duration.String()
-
-        locationValue, locationExist := currentUrl.response.Header["Location"]
-        location := ""
-        if locationExist {
-            location = locationValue[0]
-        }
-
-        line := []string{currentUrl.uri, strconv.Itoa(responseCode), duration, location}
-
+    for _, line := range datas {
         errWrite := writer.Write(line)
         if errWrite != nil {
             log.Fatal("Cannot create file", errWrite)
