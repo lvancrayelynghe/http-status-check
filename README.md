@@ -31,19 +31,20 @@ http-status-check -i exemple.csv
 http-status-check -i sitemap.xml
 ```
 
-### Complex exemple
+### Complete exemple
 
 ```
 http-status-check -i exemple.csv -o raw-github-test.csv -c 2 -n https://raw.github.com/
 http-status-check -i sitemap.xml -o raw-github-test.csv -c 2 -n https://raw.github.com/
 ```
 
-## Installation from binaries
+
+## Installation from binaries
 
 See the [GitHub releases](https://github.com/Benoth/http-status-check/releases)
 
 
-## Installation from sources
+## Installation from sources
 
 ### Install Go
 
